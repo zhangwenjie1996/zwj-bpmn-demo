@@ -1,0 +1,20 @@
+{
+  "StartEvent":  {
+      "id":"StartEvent",
+      "name":"",
+      "description":"",
+    "start":""
+    },
+  "EndEvent":  {
+    "id":"EndEvent",
+    "name":"",
+    "description":"",
+    "end":""
+  },
+  "Task":  {
+    "id":"Task",
+    "name":"",
+    "description":""
+  }
+
+}

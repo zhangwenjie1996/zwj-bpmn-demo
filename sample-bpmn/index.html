@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <title>bpmn-js seed</title>
+
+    <style type="text/css">
+        html, body, #canvas {
+            height: 100%;
+            padding: 0;
+        }
+
+        #save-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+
+            border: solid 5px green;
+        }
+
+        #panel {
+            float: right;
+            position: fixed;
+            right: 20px;
+            top: 50px;
+            border: 1px solid gray;
+            width: 100px;
+            height: 500px
+
+        }
+
+        label {
+
+        }
+
+        input, textarea {
+            display: block;
+            width: 100%
+        }
+
+    </style>
+    <link rel="stylesheet" href="bower_components/bpmn-js/dist/assets/diagram-js.css"/>
+    <link rel="stylesheet" href="bower_components/bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css"/>
+</head>
+
+<body>
+<div class="fa">
+    <div class="one">
+        <div class="two">2222</div>
+    </div>
+
+</div>
+<div id="canvas"></div>
+<button id="save-button">Save Diagram</button>
+<div id="panel">
+
+</div>
+<script src="bower_components/bpmn-js/dist/bpmn-viewer.js"></script>
+<script src="bower_components/bpmn-js/dist/bpmn-modeler.js"></script>
+<script src="bower_components/jquery/dist/jquery.min.js"></script>
+<script type="text/javascript" src=" require.js"></script>
+<!-- application -->
+<script>
+    var BpmnViewer = window.BpmnJS;
+    var viewer = new BpmnViewer({container: '#canvas'});
+    var xhr = new XMLHttpRequest();
+    var xml;
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            // import function
+            viewer.importXML(xhr.response, function (err) {
+                xml = xhr.response;
+                if (!err) {
+                    console.log('success!');
+                    viewer.get('canvas').zoom('fit-viewport');
+                } else {
+                    console.log('something went wrong:', err);
+                }
+            });
+        }
+    };
+
+    xhr.open('GET', './1.bpmn', true);
+    xhr.send(null);
+
+    //读取json
+    var jsonData = null;
+    ~function () {
+        var xhr = new XMLHttpRequest;
+        xhr.open("get", "./1.json", false);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && /^2\d{2}$/.test(xhr.status)) {
+                var str = xhr.responseText;
+                jsonData = JSON.parse(str);
+            }
+        };
+        xhr.send(null);
+    }();
+
+    var $panel = $('#panel');
+    var startObj = {};
+    var flag = true;
+    var $current, $current2;
+    var currentAry = [];
+    $("#canvas").on("click", function (e) {
+        $panel.html("");
+        var $tar = $(e.target);
+        if ($tar.parents().data("element-id")) {
+            var reg = /^(\w+)_(\w+)$/g;
+            $current = $tar.parents().data("element-id").replace(reg, "$1");
+            $current2 = $tar.parents().data("element-id");
+            var obj = jsonData[$current];
+            switch ($current) {
+                case "StartEvent":
+                    require(["lib/index"], function (index) {
+                        var currentObj = {};
+                        currentObj.myObj={};
+                        for (var key in obj) {
+                            if (key == "id") {
+                                $panel.append(index.textfield(key, obj[key]));
+                                $("#" + key).val($current2);
+                            } else {
+                                $panel.append(index.textbox(key));
+                            }
+                            currentObj.myObj[key] = $("#" + key).val();
+                            $("#" + key).bind('input propertychange', function () {
+                                currentObj.myObj[this.id] = $(this).val();
+                            });
+                        }
+                        currentObj['bpmnid']=$current2;
+                        currentAry.push(currentObj);
+                    });
+
+                    break;
+                case "EndEvent":
+                    require(["lib/index"], function (index) {
+                        var currentObj = {};
+                        currentObj.myObj={};
+                        for (var key in obj) {
+                            if (key == "id") {
+                                $panel.append(index.textfield(key, obj[key]));
+                                $("#" + key).val($current2);
+                            } else {
+                                $panel.append(index.textbox(key));
+                            }
+                            currentObj.myObj[key] = $("#" + key).val();
+                            $("#" + key).blur(function () {
+                                currentObj.myObj[this.id] = $(this).val();
+                            });
+                        }
+                        currentObj['bpmnid']=$current2;
+                        currentAry.push(currentObj);
+                    });
+                    break;
+                case "ExclusiveGateway":
+                    $panel.html("ExclusiveGateway ");
+                    break;
+                default:
+                    $panel.html("hello");
+            }
+        } else {
+//            console.log('pro', $tar)
+        }
+    });
+    // save diagram on button click
+    var saveButton = document.querySelector('#save-button');
+    function callback() {
+        // get the diagram contents
+//        console.log('callback', xml);
+        var parser = new DOMParser();
+        viewer.saveXML({format: true}, function (err, xml) {
+            if (err) {
+                console.error('diagram save failed', err);
+            } else {
+                var xmlDoc = parser.parseFromString(xml, "text/xml");
+                var x = xmlDoc.documentElement.childNodes;
+                var ary = [];
+                function loop(x) {
+                    for (var i = 0; i < x.length; i++) {
+                        if (x[i].nodeType == 1) {
+                            if (x[i].childNodes.length > 0) {
+                                loop(x[i].childNodes)
+                            }
+                            console.log('便利', x[i].nodeName, x[i].getAttributeNode('id'));
+                            if (x[i].getAttributeNode('id')) {
+                                currentAry.map(function (item2, index2) {
+                                    if(item2.bpmnid== x[i].getAttributeNode('id').nodeValue ){
+                                        x[i].getAttributeNode('id').nodeValue= item2.myObj["id"];
+                                    }
+                                });
+                                ary.push(x[i].getAttributeNode('id').nodeValue)
+                            }
+                        }
+                    }
+                }
+
+                loop(x);
+                console.log('ary', ary, currentAry);
+                ary.map(function (item, index) {
+                    currentAry.map(function (item2, index2) {
+                        if (item == item2.myObj["id"]) {
+                            for (var key in item2.myObj) {
+                                var newel = xmlDoc.createElement(key);
+                                var newtext = xmlDoc.createTextNode(item2.myObj[key]);
+                                newel.appendChild(newtext);
+                                var $currentExit = xmlDoc.getElementById(item);
+                                if ($currentExit) {
+                                    $currentExit.appendChild(newel);
+                                }
+                            }
+                        }
+                    });
+                });
+                xml = new XMLSerializer().serializeToString(xmlDoc);
+                console.info("======", xmlDoc, xml);
+//                for (var key  in jsonData[$current]) {
+//                    var newel = xmlDoc.createElement(key);
+//                    var newtext = xmlDoc.createTextNode($("#" + key).val());
+//                    newel.appendChild(newtext);
+//                    var $currentExit = xmlDoc.getElementsByTagName($current.substr(0, 1).toLocaleLowerCase() + $current.substr(1))[0];
+//                    console.log('$currentExit', $currentExit, $current.substr(0, 1).toLocaleLowerCase() + $current.substr(1));
+//                    if ($currentExit) {
+//                        $currentExit.appendChild(newel);
+//                    }
+//                }
+
+//                for (var key1 in jsonData) {
+//                    for (var key2 in jsonData[key1]) {
+//                        var newel = xmlDoc.createElement(key2);
+//                        var newtext = xmlDoc.createTextNode($("#" + key2).val());
+//                        newel.appendChild(newtext);
+////                    var atr=xmlDoc.getElementsByTagName($current)[0].attributes;
+////                    var att=x.getNamedItem("id");
+////                    att.value
+//                        var $currentExit = xmlDoc.getElementsByTagName(key1.substr(0, 1).toLocaleLowerCase() + key1.substr(1))[0];
+//                        console.log('$currentExit', $currentExit);
+//                        if ($currentExit) {
+//                            $currentExit.appendChild(newel);
+//                        }
+//                    }
+//                }
+
+
+            }
+        });
+
+    }
+    saveButton.addEventListener('click', callback);
+
+
+</script>
+</body>
+
+</html>
